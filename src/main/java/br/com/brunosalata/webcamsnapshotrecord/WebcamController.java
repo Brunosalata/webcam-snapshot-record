@@ -60,7 +60,7 @@ public class WebcamController implements Initializable {
 
         cbWebcamOptions.valueProperty().addListener((observable, oldValue, newValue) -> {
             if (newValue != null) {
-                webcam = newValue; // Define a webcam selecionada como a referência da webcam
+                webcam = newValue; // Define webcam with the selected one reference
                 System.out.println("Webcam selecionada: " + webcam.getName());
             }
         });
@@ -125,27 +125,26 @@ public class WebcamController implements Initializable {
         }
         };
 
-        // Iniciar o serviço de captura
+        // Start Capture Service
         captureService.start();
     }
 
     /**
-     * Recebe imagem convertida e vaores para atualização da UI
-     * @param image Image convertida
-     * @param counting contagem
-     * @param time tempo
+     * Receives the converted image and data to UI updates
+     * @param image converted Image
+     * @param counting just frame counting
+     * @param time time in milliseconds
      */
     private void updateUIValues(Image image, String counting, String time) {
-        // Use Platform.runLater para atualizar as variáveis da interface
+        // Use Platform.runLater to update UI ImageView and Data elements
         Platform.runLater(() -> {
             txtCounting.setText(counting);
             txtTime.setText(time);
 
-            // Atualiza a ImageView com a imagem capturada
+            // ImageView update with the captured image
             imgView.setImage(image);
         });
     }
-
 
     @FXML
     private void closeWebcam() {
@@ -177,31 +176,6 @@ public class WebcamController implements Initializable {
         }
     }
 
-//    @FXML
-//    private void screenshot() {
-//        CompletableFuture<WritableImage> snapshotFuture = new CompletableFuture<>();
-//
-//        Platform.runLater(() -> {
-//            WritableImage image = hbOutputRecArea.snapshot(new SnapshotParameters(), null);
-//            snapshotFuture.complete(image);
-//        });
-//
-//        snapshotFuture.thenAcceptAsync(image -> {
-//            // Processamento adicional fora do bloco Platform.runLater()
-//            BufferedImage bufferedImage = SwingFXUtils.fromFXImage(image, null);
-//
-//            String caminhoDestino = "snapshot.png";
-//            // Salva a imagem no formato PNG no caminho especificado
-//            try {
-//                File fileDestino = new File(caminhoDestino);
-//                ImageIO.write(bufferedImage, "png", fileDestino);
-//                System.out.println("Imagem salva com sucesso em: " + caminhoDestino);
-//            } catch (IOException e) {
-//                System.out.println("Erro ao salvar a imagem: " + e.getMessage());
-//            }
-//        }, Platform::runLater);
-//    }
-
     @FXML
     private void screenshot() {
         ScreenshotService screenshotService = new ScreenshotService();
@@ -224,11 +198,13 @@ public class WebcamController implements Initializable {
             }
         });
 
-        // Inicia o serviço de captura de tela
+        // Start Screen Capture Service
         screenshotService.start();
     }
 
-    // Classe do serviço para captura de tela
+    /**
+     * Classe do serviço para captura de tela
+      */
     private class ScreenshotService extends Service<Void> {
         private BufferedImage bufferedImage;
 
@@ -236,12 +212,12 @@ public class WebcamController implements Initializable {
         protected Task<Void> createTask() {
             return new Task<>() {
                 @Override
-                protected Void call() throws Exception {
+                protected Void call() {
                     CompletableFuture<WritableImage> snapshotFuture = new CompletableFuture<>();
 
-                    // Captura de tela dentro do bloco Platform.runLater()
+                    // Screem capture inside the Platform.runLater() structure
                     Platform.runLater(() -> {
-                        WritableImage image = hbOutputRecArea.snapshot(new SnapshotParameters(), null);
+                        WritableImage image = root.snapshot(new SnapshotParameters(), null);
                         snapshotFuture.complete(image);
                     });
 
@@ -258,21 +234,25 @@ public class WebcamController implements Initializable {
         }
     }
 
-
-
 //    ****************************
 
     @FXML
-    private void startRecord() {
-
-    }
-
-    private void recordScreen() {
+    private void startWebcamRecord() {
 
     }
 
     @FXML
-    private void stopRecord() {
+    private void stopWebcamRecord() {
+
+    }
+
+    @FXML
+    private void startSnapshotRecord() {
+
+    }
+
+    @FXML
+    private void stopSnapshotRecord() {
 
     }
 

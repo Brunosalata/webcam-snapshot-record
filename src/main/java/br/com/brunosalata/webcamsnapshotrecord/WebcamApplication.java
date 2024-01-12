@@ -12,7 +12,7 @@ public class WebcamApplication extends Application {
     public void start(Stage stage) throws IOException {
         FXMLLoader fxmlLoader = new FXMLLoader(WebcamApplication.class.getResource("webcamUI.fxml"));
 //        FXMLLoader fxmlLoader = new FXMLLoader(HelloApplication.class.getResource("WebCamPreview.fxml"));
-        Scene scene = new Scene(fxmlLoader.load(), 900, 690);
+        Scene scene = new Scene(fxmlLoader.load(), 900, 600);
         stage.setTitle("Hello!");
         stage.setScene(scene);
         stage.show();
