@@ -1,5 +1,9 @@
 package br.com.brunosalata.webcamsnapshotrecord;
 
+import br.com.brunosalata.webcamsnapshotrecord.videoRecord.SnapshotCaptureService;
+import br.com.brunosalata.webcamsnapshotrecord.videoRecord.SnapshotVideoGenerator;
+import br.com.brunosalata.webcamsnapshotrecord.videoRecord.WebcamCaptureService;
+import br.com.brunosalata.webcamsnapshotrecord.videoRecord.WebcamVideoGenerator;
 import com.github.sarxos.webcam.Webcam;
 import com.github.sarxos.webcam.WebcamEvent;
 import com.github.sarxos.webcam.WebcamListener;
@@ -16,8 +20,8 @@ import javafx.scene.control.TextField;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.image.WritableImage;
-import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
+import javafx.util.Duration;
 
 import javax.imageio.ImageIO;
 import java.awt.*;
@@ -35,9 +39,7 @@ public class WebcamController implements Initializable {
     private ImageView imgView;
     private static Webcam webcam;
     @FXML
-    private HBox hbOutputRecArea;
-    @FXML
-    private VBox root;
+    private VBox snapshotArea;
     @FXML
     private TextField txtCounting, txtTime;
     @FXML
@@ -45,6 +47,7 @@ public class WebcamController implements Initializable {
     private static volatile boolean videoRecording = false;
     private volatile boolean webcamOpened = false;
     private Dimension webcamResolution;
+    private WebcamCaptureService captureService;
 
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
@@ -74,66 +77,91 @@ public class WebcamController implements Initializable {
 
     @FXML
     private void openWebcam() {
-
         webcam.open();
         webcamOpened = true;
-
         captureFrames();
+    }
+
+    private void webcamListener() {
+        if (webcam != null) {
+            webcam.addWebcamListener(new WebcamListener() {
+                @Override
+                public void webcamOpen(WebcamEvent webcamEvent) {
+                    System.out.println("Webcam opened");
+                }
+
+                @Override
+                public void webcamClosed(WebcamEvent webcamEvent) {
+                    System.out.println("Webcam closed");
+                }
+
+                @Override
+                public void webcamDisposed(WebcamEvent webcamEvent) {
+                    System.out.println("Webcam Disposed");
+                }
+
+                @Override
+                public void webcamImageObtained(WebcamEvent webcamEvent) {
+//                    System.out.println("Image taken ");
+                }
+            });
+        }
     }
 
     private void captureFrames() {
 
         Service<Void> captureService = new Service<>() {
-        @Override
-        protected Task<Void> createTask() {
-            return new Task<>() {
-                @Override
-                protected Void call() throws Exception {
+            @Override
+            protected Task<Void> createTask() {
+                return new Task<>() {
+                    @Override
+                    protected Void call() throws Exception {
 
-                    AtomicLong frameCounter = new AtomicLong(0);
-                    AtomicLong lastFPSCheckTime = new AtomicLong(System.currentTimeMillis());
-                    long startTime = System.currentTimeMillis();
-                    Image image = null;
-                    while (webcamOpened && !Thread.currentThread().isInterrupted()) {
-                        try {
-                            // Capture a imagem da webcam ou da tela
-                            image = SwingFXUtils.toFXImage(webcam.getImage(), null);
-                            frameCounter.incrementAndGet();
+                        AtomicLong frameCounter = new AtomicLong(0);
+                        AtomicLong lastFPSCheckTime = new AtomicLong(System.currentTimeMillis());
+                        long startTime = System.currentTimeMillis();
+                        Image image = null;
+                        while (webcamOpened && !Thread.currentThread().isInterrupted()) {
+                            try {
+                                // Capture a imagem da webcam ou da tela
+                                image = SwingFXUtils.toFXImage(webcam.getImage(), null);
+                                frameCounter.incrementAndGet();
 
-                            long currentTime = System.currentTimeMillis();
-                            long elapsedTime = currentTime - lastFPSCheckTime.get();
-                            if (elapsedTime >= 1000) {
-                                double fps = (frameCounter.get() * 1000.0) / elapsedTime;
-                                System.out.println("FPS: " + fps);
-                                frameCounter.set(0);
-                                lastFPSCheckTime.set(currentTime);
+                                long currentTime = System.currentTimeMillis();
+                                long elapsedTime = currentTime - lastFPSCheckTime.get();
+                                if (elapsedTime >= 1000) {
+                                    double fps = (frameCounter.get() * 1000.0) / elapsedTime;
+                                    System.out.println("FPS: " + fps);
+                                    frameCounter.set(0);
+                                    lastFPSCheckTime.set(currentTime);
+                                }
+
+                                // Atualiza as variáveis relacionadas à interface
+                                updateUIValues(image, frameCounter.toString(), String.valueOf(currentTime - startTime));
+
+                                Thread.sleep(30);
+                            } catch (InterruptedException e) {
+                                Thread.currentThread().interrupt();
+                                e.printStackTrace();
                             }
-
-                            // Atualiza as variáveis relacionadas à interface
-                            updateUIValues(image, frameCounter.toString(), String.valueOf(currentTime - startTime));
-
-                            Thread.sleep(30);
-                        } catch (InterruptedException e) {
-                            Thread.currentThread().interrupt();
-                            e.printStackTrace();
                         }
+                        webcam.close();
+                        return null;
                     }
-                    webcam.close();
-                    return null;
-                }
-            };
-        }
+                };
+            }
         };
 
-        // Start Capture Service
+        // Start Webcam Capture Service
         captureService.start();
     }
 
     /**
      * Receives the converted image and data to UI updates
-     * @param image converted Image
+     *
+     * @param image    converted Image
      * @param counting just frame counting
-     * @param time time in milliseconds
+     * @param time     time in milliseconds
      */
     private void updateUIValues(Image image, String counting, String time) {
         // Use Platform.runLater to update UI ImageView and Data elements
@@ -150,6 +178,8 @@ public class WebcamController implements Initializable {
     private void closeWebcam() {
         webcamOpened = false;
     }
+
+//    **************************** WEBCAM PICTURE GENERATOR
 
     @FXML
     protected void WebcamPictureCapture() {
@@ -175,6 +205,8 @@ public class WebcamController implements Initializable {
             System.out.println("Webcam disconnected");
         }
     }
+
+//    **************************** SNAPSHOT PICTURE GENERATOR
 
     @FXML
     private void screenshot() {
@@ -204,7 +236,7 @@ public class WebcamController implements Initializable {
 
     /**
      * Classe do serviço para captura de tela
-      */
+     */
     private class ScreenshotService extends Service<Void> {
         private BufferedImage bufferedImage;
 
@@ -217,7 +249,7 @@ public class WebcamController implements Initializable {
 
                     // Screem capture inside the Platform.runLater() structure
                     Platform.runLater(() -> {
-                        WritableImage image = root.snapshot(new SnapshotParameters(), null);
+                        WritableImage image = snapshotArea.snapshot(new SnapshotParameters(), null);
                         snapshotFuture.complete(image);
                     });
 
@@ -234,21 +266,102 @@ public class WebcamController implements Initializable {
         }
     }
 
-//    ****************************
+//    **************************** WEBCAM VIDEO GENERATOR
 
     @FXML
     private void startWebcamRecord() {
+        int numberOfFramesToCapture = 120; // Substitua pelo valor desejado
+        int frameCaptureInterval = 30; // Substitua pelo valor desejado
 
+        captureService = new WebcamCaptureService(numberOfFramesToCapture, frameCaptureInterval, webcam);
+        WebcamVideoGenerationService generationService = new WebcamVideoGenerationService();
+
+        captureService.setOnSucceeded(event -> {
+            List<BufferedImage> capturedImages = captureService.getValue();
+            System.out.println("Captura Webcam Finalizada");
+
+            int count = 0;
+            for(BufferedImage item : capturedImages){
+                System.out.println(item);
+                count++;
+            }
+            System.out.println(count);
+
+            generationService.setCapturedImages(capturedImages);
+            generationService.start();
+        });
+
+        generationService.setOnSucceeded(event -> {
+            System.out.println("Geração do vídeo Webcam Finalizada");
+            System.out.println("Vídeo gerado com sucesso!");
+        });
+
+        generationService.setOnFailed(event -> {
+            System.out.println("Erro na geração do vídeo: " + event.getSource().getException());
+        });
+
+        captureService.start();
     }
 
     @FXML
     private void stopWebcamRecord() {
-
+        if (captureService != null && captureService.isRunning()) {
+            captureService.stopCapture();
+            captureService.cancel();
+        }
     }
+
+    // Classe do serviço para geração do vídeo
+    private static class WebcamVideoGenerationService extends Service<Void> {
+        private List<BufferedImage> capturedImages;
+
+        public void setCapturedImages(List<BufferedImage> capturedImages) {
+            this.capturedImages = capturedImages;
+        }
+
+        @Override
+        protected Task<Void> createTask() {
+            return new Task<>() {
+                @Override
+                protected Void call() throws Exception {
+                    try {
+                        System.out.println("Geração do vídeo Webcam Iniciada");
+                        WebcamVideoGenerator.webcamGenerateVideo(capturedImages, "output.mp4", 30);
+                        System.out.println("Geração do vídeo Webcam Concluída");
+                    } catch (Exception e) {
+                        // Relatar qualquer exceção que ocorra durante a geração do vídeo
+                        e.printStackTrace();
+                        throw new RuntimeException("Erro na geração do vídeo", e);
+                    }
+                    return null;
+                }
+            };
+        }
+    }
+
+//    **************************** SNAPSHOT VIDEO GENERATOR
 
     @FXML
     private void startSnapshotRecord() {
+        SnapshotCaptureService captureService = new SnapshotCaptureService();
+        SnapshotVideoGenerationService generationService = new SnapshotVideoGenerationService();
 
+        // Configurar parâmetros da captura
+        captureService.setNumberOfSnapshotsToCapture(20); // Altere conforme necessário
+        captureService.setHbOutputRecArea(snapshotArea); // Substitua 'suaHBox' pela sua instância de HBox
+        captureService.setSnapshotCaptureInterval(Duration.seconds(2)); // Altere conforme necessário
+
+        captureService.setOnSucceeded(event -> {
+            List<WritableImage> capturedSnapshots = captureService.getValue();
+            generationService.setCapturedSnapshots(capturedSnapshots);
+            generationService.start();
+        });
+
+        generationService.setOnSucceeded(event -> {
+            System.out.println("Vídeo gerado com sucesso!");
+        });
+
+        captureService.start();
     }
 
     @FXML
@@ -256,29 +369,27 @@ public class WebcamController implements Initializable {
 
     }
 
-    private void webcamListener() {
-        if (webcam != null) {
-            webcam.addWebcamListener(new WebcamListener() {
-                @Override
-                public void webcamOpen(WebcamEvent webcamEvent) {
-                    System.out.println("Webcam opened");
-                }
+    // Classe do serviço para geração do vídeo
+    private static class SnapshotVideoGenerationService extends Service<Void> {
+        private List<WritableImage> capturedSnapshots;
 
-                @Override
-                public void webcamClosed(WebcamEvent webcamEvent) {
-                    System.out.println("Webcam closed");
-                }
+        public void setCapturedSnapshots(List<WritableImage> capturedSnapshots) {
+            this.capturedSnapshots = capturedSnapshots;
+        }
 
+        @Override
+        protected Task<Void> createTask() {
+            return new Task<>() {
                 @Override
-                public void webcamDisposed(WebcamEvent webcamEvent) {
-                    System.out.println("Webcam Disposed");
+                protected Void call() throws Exception {
+                    SnapshotVideoGenerator.generateVideo(capturedSnapshots, "output.mp4");
+                    return null;
                 }
-
-                @Override
-                public void webcamImageObtained(WebcamEvent webcamEvent) {
-//                    System.out.println("Image taken ");
-                }
-            });
+            };
         }
     }
+
+    //    **************************** OTHERS FEATURES TO FUTURE
+
+
 }
